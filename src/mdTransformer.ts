@@ -13,6 +13,9 @@ export interface TransformResult {
  * Remove HTML comments from markdown content
  * Preserves comments inside code blocks
  */
+/**
+ * Remove HTML comments from markdown content
+ */
 export function removeHtmlComments(content: string): TransformResult {
     let commentsRemoved = 0;
     
@@ -45,6 +48,52 @@ export function removeHtmlComments(content: string): TransformResult {
         content: finalContent,
         commentsRemoved
     };
+}
+
+/**
+ * Ensure content has Antigravity frontmatter for .agents/rules
+ */
+export function ensureAntigravityFrontmatter(content: string, filename: string): string {
+    // Extract existing frontmatter if any
+    const frontmatterRegex = /^---\s*\n([\s\S]*?)\n---\s*\n?/;
+    const existingMatch = content.match(frontmatterRegex);
+    
+    let existingFrontmatter: Record<string, string> = {};
+    let bodyContent = content;
+    
+    if (existingMatch) {
+        bodyContent = content.slice(existingMatch[0].length);
+        
+        // Parse existing frontmatter
+        const lines = existingMatch[1].split('\n');
+        for (const line of lines) {
+            const colonIndex = line.indexOf(':');
+            if (colonIndex > 0) {
+                const key = line.slice(0, colonIndex).trim();
+                const value = line.slice(colonIndex + 1).trim();
+                existingFrontmatter[key] = value;
+            }
+        }
+    }
+    
+    // Merge with required fields (existing values take precedence except for trigger)
+    const requiredFrontmatter = {
+        trigger: existingFrontmatter.trigger || 'always_on',
+        glob: existingFrontmatter.glob || '',
+        description: existingFrontmatter.description || extractFileName(filename).replace(/-/g, ' ')
+    };
+    
+    // Build new frontmatter
+    const frontmatterLines = [
+        '---',
+        `trigger: ${requiredFrontmatter.trigger}`,
+        `glob: ${requiredFrontmatter.glob}`,
+        `description: ${requiredFrontmatter.description}`,
+        '---',
+        ''
+    ];
+    
+    return frontmatterLines.join('\n') + bodyContent.trim() + '\n';
 }
 
 /**

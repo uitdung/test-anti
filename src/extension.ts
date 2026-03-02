@@ -21,9 +21,9 @@ export function activate(context: vscode.ExtensionContext) {
     // Initialize manager
     mdManager = new MdManager(workspaceRoot, context);
 
-    // Initialize sidebar
+    // Initialize sidebar (simple, without drag-drop)
     sidebarProvider = new MdSidebarProvider(mdManager);
-    const treeView = vscode.window.createTreeView('mdToRulesSidebar', {
+    vscode.window.createTreeView('mdToRulesSidebar', {
         treeDataProvider: sidebarProvider,
         showCollapseAll: false
     });
@@ -33,24 +33,36 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Register commands
     const commands = [
+        // Refresh file list
         vscode.commands.registerCommand('mdToRules.refresh', () => {
             mdManager.scanFiles();
             sidebarProvider.refresh();
-            showDestinationsStatus();
             vscode.window.showInformationMessage('📁 Files refreshed');
         }),
 
+        // Toggle file sync (click on file)
         vscode.commands.registerCommand('mdToRules.toggleFile', (item: MdTreeItem) => {
             if (item.file) {
+                const wasEnabled = item.file.enabled;
                 const newState = mdManager.toggleFile(item.file.name);
                 sidebarProvider.refresh();
-                const modeDesc = getModeDescription(item.file.syncMode);
-                vscode.window.showInformationMessage(
-                    `${newState ? '✅ Enabled' : '⬜ Disabled'} sync for ${item.file.name} → ${modeDesc}`
-                );
+                
+                if (wasEnabled && !newState) {
+                    // Disabled - file was removed from destinations
+                    vscode.window.showInformationMessage(
+                        `⬜ Disabled & removed: ${item.file.name}`
+                    );
+                } else if (!wasEnabled && newState) {
+                    // Enabled - file was synced
+                    const modeDesc = getModeDescription(item.file.syncMode);
+                    vscode.window.showInformationMessage(
+                        `✅ Enabled: ${item.file.name} → ${modeDesc}`
+                    );
+                }
             }
         }),
 
+        // Sync all enabled files
         vscode.commands.registerCommand('mdToRules.syncAll', async () => {
             const result = await mdManager.syncAll();
             let message = `🔄 Synced ${result.synced} files`;
@@ -59,6 +71,7 @@ export function activate(context: vscode.ExtensionContext) {
             vscode.window.showInformationMessage(message);
         }),
 
+        // Open file
         vscode.commands.registerCommand('mdToRules.openFile', async (item: MdTreeItem) => {
             if (item.file) {
                 const uri = vscode.Uri.file(item.file.path);
@@ -67,6 +80,7 @@ export function activate(context: vscode.ExtensionContext) {
             }
         }),
 
+        // Create new file
         vscode.commands.registerCommand('mdToRules.createFile', async () => {
             const fileName = await vscode.window.showInputBox({
                 prompt: 'Enter file name (without .md extension)',
@@ -78,6 +92,7 @@ export function activate(context: vscode.ExtensionContext) {
                 if (result.success) {
                     const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(result.path!));
                     await vscode.window.showTextDocument(doc);
+                    mdManager.scanFiles();
                     sidebarProvider.refresh();
                     vscode.window.showInformationMessage(`✅ Created ${fileName}.md`);
                 } else {
@@ -86,6 +101,7 @@ export function activate(context: vscode.ExtensionContext) {
             }
         }),
 
+        // Select source folder
         vscode.commands.registerCommand('mdToRules.selectSourceFolder', async () => {
             const folders = await getWorkspaceFolders(workspaceRoot);
             
@@ -106,17 +122,18 @@ export function activate(context: vscode.ExtensionContext) {
                 await mdManager.setSourceFolder(relativePath || selected.label);
                 mdManager.scanFiles();
                 sidebarProvider.refresh();
-                vscode.window.showInformationMessage(`📁 Source folder set to: ${selected.label}`);
+                vscode.window.showInformationMessage(`📁 Source folder: ${selected.label}`);
             }
         }),
 
+        // Change sync mode
         vscode.commands.registerCommand('mdToRules.changeSyncMode', async (item: MdTreeItem) => {
             if (!item.file) return;
 
-            const modes: { label: string; description: string; mode: SyncMode }[] = [
-                { label: '📁 Rules Folder', description: 'Save to .agents/rules/', mode: 'rules' },
-                { label: '📄 CLAUDE.md', description: 'Append/replace section in CLAUDE.md', mode: 'claude' },
-                { label: '📁📄 Both', description: 'Save to both locations', mode: 'both' }
+            const modes = [
+                { label: '📁 Rules Folder', description: 'Save to .agents/rules/', mode: 'rules' as SyncMode },
+                { label: '📄 CLAUDE.md', description: 'Append/replace section in CLAUDE.md', mode: 'claude' as SyncMode },
+                { label: '📁📄 Both', description: 'Save to both locations', mode: 'both' as SyncMode }
             ];
 
             const selected = await vscode.window.showQuickPick(
@@ -126,28 +143,80 @@ export function activate(context: vscode.ExtensionContext) {
                     mode: m.mode,
                     picked: item.file!.syncMode === m.mode
                 })),
-                {
-                    placeHolder: `Select sync mode for ${item.file.name}`,
-                    title: 'Sync Mode'
-                }
+                { placeHolder: `Select sync mode for ${item.file.name}`, title: 'Sync Mode' }
             );
 
             if (selected) {
                 mdManager.changeSyncMode(item.file.name, selected.mode);
                 sidebarProvider.refresh();
-                vscode.window.showInformationMessage(`📝 Sync mode: ${selected.label}`);
+                vscode.window.showInformationMessage(`📝 ${item.file.name}: ${selected.label}`);
+            }
+        }),
+
+        // Show help popup
+        vscode.commands.registerCommand('mdToRules.showHelp', async () => {
+            const help = `**MD to Rules Sync - How to use**
+
+1. **Add files** to \`.agents/memory/\` (or your selected source folder)
+2. **Click on a file** in the sidebar → enables sync
+3. **Right-click** → change sync mode:
+   - 📁 **Rules**: \`.agents/rules/\` folder
+   - 📄 **CLAUDE.md**: Section in CLAUDE.md
+   - 📁📄 **Both**: Both locations
+
+**What happens:**
+- HTML comments \`<!-- -->\` are removed
+- File is copied to destination(s)
+- Auto-syncs when you edit the file
+
+**Disable sync:**
+- Click on file again → stops sync AND removes from destinations
+
+**Settings:** Check VS Code Settings → "MD to Rules"`;
+            
+            const result = await vscode.window.showInformationMessage(
+                'MD to Rules Sync',
+                { modal: true, detail: help },
+                'Open Settings'
+            );
+            
+            if (result === 'Open Settings') {
+                vscode.commands.executeCommand('workbench.action.openSettings', 'mdToRules');
+            }
+        }),
+
+        // Set source folder from Explorer context menu
+        vscode.commands.registerCommand('mdToRules.setFolderFromExplorer', async (uri: vscode.Uri) => {
+            if (!uri || !fs.existsSync(uri.fsPath)) return;
+            
+            const stat = fs.statSync(uri.fsPath);
+            if (!stat.isDirectory()) {
+                vscode.window.showWarningMessage('Please select a folder');
+                return;
+            }
+            
+            const relativePath = path.relative(workspaceRoot, uri.fsPath);
+            const displayPath = relativePath || uri.fsPath;
+            
+            const confirm = await vscode.window.showInformationMessage(
+                `Set source folder to: ${displayPath}?`,
+                'Yes', 'No'
+            );
+            
+            if (confirm === 'Yes') {
+                await mdManager.setSourceFolder(relativePath || uri.fsPath);
+                mdManager.scanFiles();
+                sidebarProvider.refresh();
+                vscode.window.showInformationMessage(`📁 Source folder: ${displayPath}`);
             }
         })
     ];
 
-    context.subscriptions.push(...commands, treeView);
+    context.subscriptions.push(...commands);
 
     // Initial scan
     mdManager.scanFiles();
     sidebarProvider.refresh();
-    
-    // Show status on activation
-    showDestinationsStatus();
 }
 
 function getModeDescription(mode: SyncMode): string {
@@ -159,22 +228,10 @@ function getModeDescription(mode: SyncMode): string {
     }
 }
 
-function showDestinationsStatus() {
-    const rulesExists = mdManager.rulesFolderExists();
-    const claudeExists = mdManager.claudeFileExists();
-    
-    let status = '📍 Destinations: ';
-    status += rulesExists ? '✅ .agents/rules' : '⚠️ .agents/rules (will create)';
-    status += ' | ';
-    status += claudeExists ? '✅ CLAUDE.md' : '⚠️ CLAUDE.md (will create)';
-    
-    console.log(status);
-}
-
 async function getWorkspaceFolders(workspaceRoot: string): Promise<{ name: string; path: string; hasMd: boolean }[]> {
     const folders: { name: string; path: string; hasMd: boolean }[] = [];
     
-    async function scanDir(dir: string, depth: number = 0) {
+    function scanDir(dir: string, depth: number = 0) {
         if (depth > 3) return;
         
         try {
@@ -187,14 +244,14 @@ async function getWorkspaceFolders(workspaceRoot: string): Promise<{ name: strin
                     const hasMd = files.some(f => f.endsWith('.md'));
                     const relativePath = path.relative(workspaceRoot, fullPath);
                     
-                    if (!relativePath.includes('node_modules') && !relativePath.startsWith('.')) {
+                    if (!relativePath.includes('node_modules')) {
                         folders.push({
                             name: relativePath,
                             path: fullPath,
                             hasMd
                         });
                         
-                        await scanDir(fullPath, depth + 1);
+                        scanDir(fullPath, depth + 1);
                     }
                 }
             }
@@ -218,7 +275,7 @@ async function getWorkspaceFolders(workspaceRoot: string): Promise<{ name: strin
         hasMd: rootHasMd
     });
 
-    await scanDir(workspaceRoot);
+    scanDir(workspaceRoot);
     
     return folders;
 }

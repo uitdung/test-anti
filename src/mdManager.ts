@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
-import { removeHtmlComments, hasFrontmatter, ensureFrontmatter, extractFileName } from './mdTransformer';
+import { removeHtmlComments, hasFrontmatter, ensureFrontmatter, extractFileName, ensureAntigravityFrontmatter } from './mdTransformer';
 
 export type SyncMode = 'rules' | 'claude' | 'both';
 
@@ -208,8 +208,11 @@ export class MdManager {
                 fs.mkdirSync(rulesFolder, { recursive: true });
             }
 
+            // Ensure Antigravity frontmatter
+            const finalContent = ensureAntigravityFrontmatter(content, file.name);
+            
             const targetPath = path.join(rulesFolder, file.name);
-            fs.writeFileSync(targetPath, content, 'utf8');
+            fs.writeFileSync(targetPath, finalContent, 'utf8');
 
             console.log(`Synced to rules: ${file.name}`);
             return true;

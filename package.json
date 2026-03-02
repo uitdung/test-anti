@@ -95,6 +95,10 @@
       {
         "command": "mdToRules.changeSyncMode",
         "title": "Change Sync Mode"
+      },
+      {
+        "command": "mdToRules.setFolderFromExplorer",
+        "title": "Set as MD Source Folder"
       }
     ],
     "menus": {
@@ -135,6 +139,18 @@
           "command": "mdToRules.changeSyncMode",
           "when": "view == mdToRulesSidebar",
           "group": "1_actions@2"
+        },
+        {
+          "command": "mdToRules.showHelp",
+          "when": "view == mdToRulesSidebar",
+          "group": "2_help@1"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "mdToRules.setFolderFromExplorer",
+          "when": "explorerResourceIsFolder",
+          "group": "2_workspace@1"
         }
       ]
     }
