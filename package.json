@@ -1,0 +1,97 @@
+{
+  "name": "memory-to-rules",
+  "displayName": "Memory to Rules Sync",
+  "description": "Sync markdown files from .agents/memory to .agents/rules for Antigravity",
+  "version": "0.1.0",
+  "publisher": "local",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "memoryToRules",
+          "title": "Memory to Rules",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "memoryToRules": [
+        {
+          "id": "memoryToRulesSidebar",
+          "name": "Memory Files",
+          "icon": "resources/icon.svg",
+          "contextualTitle": "Memory to Rules Sync"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "memoryToRules.refresh",
+        "title": "Refresh Memory Files",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "memoryToRules.toggleFile",
+        "title": "Toggle File Sync"
+      },
+      {
+        "command": "memoryToRules.syncAll",
+        "title": "Sync All Enabled Files",
+        "icon": "$(sync)"
+      },
+      {
+        "command": "memoryToRules.openMemoryFile",
+        "title": "Open Memory File"
+      },
+      {
+        "command": "memoryToRules.createMemoryFile",
+        "title": "Create New Memory File",
+        "icon": "$(add)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "memoryToRules.refresh",
+          "when": "view == memoryToRulesSidebar",
+          "group": "navigation"
+        },
+        {
+          "command": "memoryToRules.syncAll",
+          "when": "view == memoryToRulesSidebar",
+          "group": "navigation"
+        },
+        {
+          "command": "memoryToRules.createMemoryFile",
+          "when": "view == memoryToRulesSidebar",
+          "group": "navigation"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/node": "^18.0.0",
+    "@types/vscode": "^1.74.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "typescript": "^5.0.0"
+  }
+}
