@@ -76,6 +76,18 @@
           "when": "view == memoryToRulesSidebar",
           "group": "navigation"
         }
+      ],
+      "view/item/context": [
+        {
+          "command": "memoryToRules.toggleFile",
+          "when": "view == memoryToRulesSidebar",
+          "group": "inline@1"
+        },
+        {
+          "command": "memoryToRules.openMemoryFile",
+          "when": "view == memoryToRulesSidebar",
+          "group": "1_actions@1"
+        }
       ]
     }
   },

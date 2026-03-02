@@ -10,17 +10,17 @@ export class MemoryTreeItem extends vscode.TreeItem {
         super(label, collapsibleState);
 
         if (file) {
-            this.tooltip = `${file.name}\nLast modified: ${file.lastModified.toLocaleString()}`;
+            this.tooltip = `${file.name}\nLast modified: ${file.lastModified.toLocaleString()}\n\nClick to toggle sync`;
             this.description = file.enabled ? '✅ Synced' : '⬜ Disabled';
             this.contextValue = file.enabled ? 'enabledFile' : 'disabledFile';
             this.iconPath = new vscode.ThemeIcon(
                 file.enabled ? 'check' : 'circle-outline'
             );
 
-            // Click action
+            // Click action - toggle sync
             this.command = {
-                command: 'memoryToRules.openMemoryFile',
-                title: 'Open File',
+                command: 'memoryToRules.toggleFile',
+                title: 'Toggle Sync',
                 arguments: [this]
             };
         }
