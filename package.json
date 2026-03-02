@@ -1,8 +1,8 @@
 {
-  "name": "memory-to-rules",
-  "displayName": "Memory to Rules Sync",
-  "description": "Sync markdown files from .agents/memory to .agents/rules for Antigravity",
-  "version": "0.1.0",
+  "name": "md-to-rules-sync",
+  "displayName": "MD to Rules Sync",
+  "description": "Sync markdown files to .agents/rules or CLAUDE.md for Antigravity/Claude Code",
+  "version": "0.3.0",
   "publisher": "local",
   "engines": {
     "vscode": "^1.74.0"
@@ -18,75 +18,123 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "memoryToRules",
-          "title": "Memory to Rules",
+          "id": "mdToRules",
+          "title": "MD to Rules",
           "icon": "resources/icon.svg"
         }
       ]
     },
     "views": {
-      "memoryToRules": [
+      "mdToRules": [
         {
-          "id": "memoryToRulesSidebar",
-          "name": "Memory Files",
+          "id": "mdToRulesSidebar",
+          "name": "Markdown Files",
           "icon": "resources/icon.svg",
-          "contextualTitle": "Memory to Rules Sync"
+          "contextualTitle": "MD to Rules Sync"
         }
       ]
     },
+    "configuration": {
+      "title": "MD to Rules Sync",
+      "properties": {
+        "mdToRules.sourceFolder": {
+          "type": "string",
+          "default": ".agents/memory",
+          "description": "Source folder containing markdown files"
+        },
+        "mdToRules.defaultSyncMode": {
+          "type": "string",
+          "enum": [
+            "rules",
+            "claude",
+            "both"
+          ],
+          "default": "rules",
+          "description": "Default sync destination"
+        },
+        "mdToRules.claudeFilePath": {
+          "type": "string",
+          "default": "CLAUDE.md",
+          "description": "Path to CLAUDE.md file (relative to workspace)"
+        },
+        "mdToRules.rulesFolder": {
+          "type": "string",
+          "default": ".agents/rules",
+          "description": "Destination folder for rules"
+        }
+      }
+    },
     "commands": [
       {
-        "command": "memoryToRules.refresh",
-        "title": "Refresh Memory Files",
+        "command": "mdToRules.refresh",
+        "title": "Refresh Files",
         "icon": "$(refresh)"
       },
       {
-        "command": "memoryToRules.toggleFile",
+        "command": "mdToRules.toggleFile",
         "title": "Toggle File Sync"
       },
       {
-        "command": "memoryToRules.syncAll",
+        "command": "mdToRules.syncAll",
         "title": "Sync All Enabled Files",
         "icon": "$(sync)"
       },
       {
-        "command": "memoryToRules.openMemoryFile",
-        "title": "Open Memory File"
+        "command": "mdToRules.openFile",
+        "title": "Open File"
       },
       {
-        "command": "memoryToRules.createMemoryFile",
-        "title": "Create New Memory File",
+        "command": "mdToRules.createFile",
+        "title": "Create New File",
         "icon": "$(add)"
+      },
+      {
+        "command": "mdToRules.selectSourceFolder",
+        "title": "Select Source Folder"
+      },
+      {
+        "command": "mdToRules.changeSyncMode",
+        "title": "Change Sync Mode"
       }
     ],
     "menus": {
       "view/title": [
         {
-          "command": "memoryToRules.refresh",
-          "when": "view == memoryToRulesSidebar",
+          "command": "mdToRules.refresh",
+          "when": "view == mdToRulesSidebar",
           "group": "navigation"
         },
         {
-          "command": "memoryToRules.syncAll",
-          "when": "view == memoryToRulesSidebar",
+          "command": "mdToRules.syncAll",
+          "when": "view == mdToRulesSidebar",
           "group": "navigation"
         },
         {
-          "command": "memoryToRules.createMemoryFile",
-          "when": "view == memoryToRulesSidebar",
+          "command": "mdToRules.createFile",
+          "when": "view == mdToRulesSidebar",
           "group": "navigation"
+        },
+        {
+          "command": "mdToRules.selectSourceFolder",
+          "when": "view == mdToRulesSidebar",
+          "group": "2_options@1"
         }
       ],
       "view/item/context": [
         {
-          "command": "memoryToRules.toggleFile",
-          "when": "view == memoryToRulesSidebar",
+          "command": "mdToRules.toggleFile",
+          "when": "view == mdToRulesSidebar",
           "group": "inline@1"
         },
         {
-          "command": "memoryToRules.openMemoryFile",
-          "when": "view == memoryToRulesSidebar",
+          "command": "mdToRules.openFile",
+          "when": "view == mdToRulesSidebar",
           "group": "1_actions@1"
+        },
+        {
+          "command": "mdToRules.changeSyncMode",
+          "when": "view == mdToRulesSidebar",
+          "group": "1_actions@2"
         }
       ]
     }
@@ -96,13 +144,15 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile",
-    "lint": "eslint src --ext ts"
+    "lint": "eslint src --ext ts",
+    "package": "vsce package"
   },
   "devDependencies": {
     "@types/node": "^18.0.0",
     "@types/vscode": "^1.74.0",
     "@typescript-eslint/eslint-plugin": "^6.0.0",
     "@typescript-eslint/parser": "^6.0.0",
+    "@vscode/vsce": "^3.7.1",
     "eslint": "^8.0.0",
     "typescript": "^5.0.0"
   }

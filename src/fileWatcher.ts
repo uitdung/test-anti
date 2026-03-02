@@ -1,20 +1,29 @@
 import * as vscode from 'vscode';
-import { MemoryManager } from './memoryManager';
-import { MemorySidebarProvider } from './sidebarProvider';
+import * as path from 'path';
+import * as fs from 'fs';
+import { MdManager } from './mdManager';
+import { MdSidebarProvider } from './sidebarProvider';
 
 export class FileWatcher {
     private watcher: vscode.FileSystemWatcher;
-    private memoryManager: MemoryManager;
-    private sidebarProvider: MemorySidebarProvider;
+    private mdManager: MdManager;
+    private sidebarProvider: MdSidebarProvider;
     private debounceTimer: NodeJS.Timeout | undefined;
 
-    constructor(memoryManager: MemoryManager, sidebarProvider: MemorySidebarProvider) {
-        this.memoryManager = memoryManager;
+    constructor(mdManager: MdManager, sidebarProvider: MdSidebarProvider) {
+        this.mdManager = mdManager;
         this.sidebarProvider = sidebarProvider;
 
-        // Create watcher for .agents/memory/**/*.md
+        // Get source folder from configuration
+        const config = vscode.workspace.getConfiguration('mdToRules');
+        const sourceFolder = config.get<string>('sourceFolder', '.agents/memory');
+
+        // Create watcher for .md files in source folder
         this.watcher = vscode.workspace.createFileSystemWatcher(
-            '**/.agents/memory/*.md'
+            new vscode.RelativePattern(
+                vscode.workspace.workspaceFolders![0],
+                `${sourceFolder}/**/*.md`
+            )
         );
 
         // Register event handlers
@@ -24,37 +33,31 @@ export class FileWatcher {
     }
 
     private onFileCreated(uri: vscode.Uri): void {
-        console.log(`File created: ${uri.fsPath}`);
+        console.log(`MD file created: ${uri.fsPath}`);
         this.debouncedRefresh();
     }
 
     private onFileChanged(uri: vscode.Uri): void {
-        console.log(`File changed: ${uri.fsPath}`);
+        console.log(`MD file changed: ${uri.fsPath}`);
 
-        // Check if file is enabled and sync
-        const fileName = require('path').basename(uri.fsPath);
-        const file = this.memoryManager.getFile(fileName);
+        const fileName = path.basename(uri.fsPath);
+        const file = this.mdManager.getFile(fileName);
 
         if (file?.enabled) {
-            this.memoryManager.syncFile(file);
-            vscode.window.showInformationMessage(`🔄 Synced: ${fileName}`);
+            this.mdManager.syncFile(file);
+            const modeDesc = this.getModeDescription(file.syncMode);
+            vscode.window.showInformationMessage(`🔄 Synced: ${fileName} → ${modeDesc}`);
         }
     }
 
     private onFileDeleted(uri: vscode.Uri): void {
-        console.log(`File deleted: ${uri.fsPath}`);
+        console.log(`MD file deleted: ${uri.fsPath}`);
 
-        // Remove from rules if existed
-        const fileName = require('path').basename(uri.fsPath);
-        const file = this.memoryManager.getFile(fileName);
+        const fileName = path.basename(uri.fsPath);
+        const file = this.mdManager.getFile(fileName);
 
         if (file?.enabled) {
-            // File was synced, need to remove from rules
-            const rulesPath = require('path').join(
-                this.memoryManager.getRulesDir(),
-                fileName
-            );
-            const fs = require('fs');
+            const rulesPath = path.join(this.mdManager.getRulesFolder(), fileName);
             if (fs.existsSync(rulesPath)) {
                 fs.unlinkSync(rulesPath);
             }
@@ -63,13 +66,22 @@ export class FileWatcher {
         this.debouncedRefresh();
     }
 
+    private getModeDescription(mode: string): string {
+        switch (mode) {
+            case 'rules': return '.agents/rules';
+            case 'claude': return 'CLAUDE.md';
+            case 'both': return '.agents/rules + CLAUDE.md';
+            default: return mode;
+        }
+    }
+
     private debouncedRefresh(): void {
         if (this.debounceTimer) {
             clearTimeout(this.debounceTimer);
         }
 
         this.debounceTimer = setTimeout(() => {
-            this.memoryManager.scanFiles();
+            this.mdManager.scanFiles();
             this.sidebarProvider.refresh();
         }, 100);
     }
